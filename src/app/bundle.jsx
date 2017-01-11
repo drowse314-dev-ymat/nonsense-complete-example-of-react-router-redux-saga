@@ -138,7 +138,7 @@ const DynamicText = connect(
     })
 )(Text);
 
-class RotatableGoodsListContainer extends React.Component {
+class RotatableAsyncList extends React.Component {
     render() {
         let { listStates, doRotate, doRefresh } = this.props;
 
@@ -162,7 +162,7 @@ class RotatableGoodsListContainer extends React.Component {
         this.props.doRefresh();
     }
 }
-const RotatableGoodsList = connect(
+const RotatableGoodsListContainer = connect(
     state => ({
         listStates: {
             items: state.goodsListState.goods,
@@ -174,7 +174,7 @@ const RotatableGoodsList = connect(
         doRotate: () => dispatch({ type: 'ROTATE' }),
         doRefresh: () => dispatch({ type: 'LIST_GOODS' })
     })
-)(RotatableGoodsListContainer);
+)(RotatableAsyncList);
 
 const NoContent = connect()(() => <div>Nothing to show</div>);
 
@@ -203,7 +203,7 @@ ReactDOM.render(
             <Router history={history}>
                 <Route path="/" component={App}>
                     <Route path="text" component={DynamicText} />
-                    <Route path="goods" component={RotatableGoodsList} />
+                    <Route path="goods" component={RotatableGoodsListContainer} />
                     <Route path="*" component={NoContent} />
                 </Route>
             </Router>
@@ -211,7 +211,7 @@ ReactDOM.render(
             <h3>Out of Router Domain</h3>
             <div>
                 <DynamicText />
-                <RotatableGoodsList />
+                <RotatableGoodsListContainer />
             </div>
         </div>
     </Provider>,
