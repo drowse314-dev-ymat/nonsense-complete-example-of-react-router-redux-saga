@@ -1,14 +1,49 @@
 'use strict';
 
+require('babel-polyfill');
+
 import { createStore, combineReducers, applyMiddleware } from 'redux';
 import createLogger from 'redux-logger';
+import createSagaMiddleware from 'redux-saga';
+import { call, put, takeLatest, fork } from 'redux-saga/effects';
 
 import * as React from 'react';
 import { connect, Provider } from 'react-redux';
 import * as ReactDOM from 'react-dom';
 
-import { Router, Route, Link, createMemoryHistory, browserHistory } from 'react-router'
+import { Router, Route, Link, createMemoryHistory } from 'react-router'
 import { syncHistoryWithStore, routerReducer } from 'react-router-redux'
+
+
+// super great services
+// =================
+const greatGoodsList = ['milk', 'flour', 'nuts', 'apples', 'pen'];
+const greatGoodsListHost = {
+    getGreatList() {
+        return new Promise((resolve, reject) => {
+            setTimeout(() => {
+                if (Math.random() > 0.65) {
+                    reject(new Error("randomly failed!!!"));
+                } else {
+                    resolve(greatGoodsList);
+                }
+            }, 2000);
+        });
+    }
+};
+// workers
+const getGreatGoodsList = function* (action) {
+    try {
+        const goods = yield call(greatGoodsListHost.getGreatList)
+        yield put({ type: 'LIST_GOODS_SUCCEEDED', goods: goods })
+    } catch (e) {
+        yield put({ type: 'LIST_GOODS_FAILED', reason: e.message })
+    }
+};
+const getGreatGoodsListWorker = function* () {
+    yield takeLatest('LIST_GOODS', getGreatGoodsList);
+};
+// =================
 
 
 // state, store
@@ -29,17 +64,35 @@ const textState = (state = initialTextState, action) => {
 };
 // =================
 const initialGoodsListState = {
-    goods: ['milk', 'flour', 'nuts', 'apples', 'pen']
+    isLoading: false,
+    isLoadingFailed: false,
+    goods: []
 };
 const goodsListState = (state = initialGoodsListState, action) => {
     switch (action.type) {
         case 'ROTATE':
-            return {
+            return Object.assign({}, state, {
                 goods: (
-                    state.goods.slice(1)
-                        .concat(state.goods.slice(0, 1))
+                    state.goods.length === 0 ?
+                        [] :
+                        state.goods.slice(1)
+                            .concat(state.goods.slice(0, 1))
                 )
-            }
+            });
+
+        case 'LIST_GOODS':
+            return Object.assign({}, state, {
+                isLoading: true
+            });
+        case 'LIST_GOODS_SUCCEEDED':
+            return {
+                isLoading: false, isLoadingFailed: false,
+                goods: action.goods
+            };
+        case 'LIST_GOODS_FAILED':
+            return Object.assign({}, state, {
+                isLoading: false, isLoadingFailed: true
+            });
     }
     return state;
 };
@@ -52,10 +105,16 @@ const reducer = combineReducers({
 
     routing: routerReducer
 });
-const store = createStore(reducer, applyMiddleware(createLogger()));
+const logger = createLogger();
+const sagaMiddleware = createSagaMiddleware();
+
+const store = createStore(
+    reducer,
+    applyMiddleware(logger, sagaMiddleware)
+);
 
 
-// view
+// stateless view
 const Text = ({ text, isVisible, doSwitch }) => (
     <div>
         <button onClick={doSwitch}>Switch</button>
@@ -79,19 +138,40 @@ const DynamicText = connect(
     })
 )(Text);
 
+class RotatableGoodsListContainer extends React.Component {
+    render() {
+        let { items, isLoading, isLoadingFailed, doRotate, doRefresh } = this.props;
+        let listApprearance = isLoading ?
+            <p key="loading">Loading...</p> :
+            (
+                isLoadingFailed ? [<p key="load-failed">Load failed.</p>] : []
+            ).concat(
+                <List items={items} key="items" />
+            );
+
+        return (
+            <div>
+                <button onClick={doRotate}>Rotate</button>
+                <button onClick={doRefresh} disabled={isLoading}>Refresh</button>
+                {  listApprearance }
+            </div>
+        );
+    }
+    componentWillMount() {
+        this.props.doRefresh();
+    }
+}
 const RotatableGoodsList = connect(
     state => ({
-        items: state.goodsListState.goods
+        items: state.goodsListState.goods,
+        isLoading: state.goodsListState.isLoading,
+        isLoadingFailed: state.goodsListState.isLoadingFailed
     }),
     dispatch => ({
-        doRotate: () => dispatch({ type: 'ROTATE' })
+        doRotate: () => dispatch({ type: 'ROTATE' }),
+        doRefresh: () => dispatch({ type: 'LIST_GOODS' })
     })
-)(({ items, doRotate }) => (
-    <div>
-        <button onClick={doRotate}>Rotate</button>
-        <List items={items}/>
-    </div>
-));
+)(RotatableGoodsListContainer);
 
 const NoContent = connect()(() => <div>Nothing to show</div>);
 
@@ -105,10 +185,15 @@ const App = connect()(({ children }) =>
 );
 
 
+// ## boot & render app
+
 // with router integration
 let history = syncHistoryWithStore(createMemoryHistory(), store)
 
-// boot app
+// async action worker
+sagaMiddleware.run(function* () { yield [ fork(getGreatGoodsListWorker) ] });
+
+// render
 ReactDOM.render(
     <Provider store={store}>
         <div>
@@ -119,7 +204,7 @@ ReactDOM.render(
                     <Route path="*" component={NoContent} />
                 </Route>
             </Router>
-            <h1>Out of Router Domain</h1>
+            <h3>Out of Router Domain</h3>
             <div>
                 <DynamicText />
                 <RotatableGoodsList />
