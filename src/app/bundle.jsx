@@ -207,6 +207,7 @@ ReactDOM.render(
                     <Route path="*" component={NoContent} />
                 </Route>
             </Router>
+            <hr />
             <h3>Out of Router Domain</h3>
             <div>
                 <DynamicText />
