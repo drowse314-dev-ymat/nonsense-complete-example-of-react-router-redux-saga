@@ -140,19 +140,20 @@ const DynamicText = connect(
 
 class RotatableGoodsListContainer extends React.Component {
     render() {
-        let { items, isLoading, isLoadingFailed, doRotate, doRefresh } = this.props;
-        let listApprearance = isLoading ?
+        let { listStates, doRotate, doRefresh } = this.props;
+
+        let listApprearance = listStates.isLoading ?
             <p key="loading">Loading...</p> :
             (
-                isLoadingFailed ? [<p key="load-failed">Load failed.</p>] : []
+                listStates.isLoadingFailed ? [<p key="load-failed">Load failed.</p>] : []
             ).concat(
-                <List items={items} key="items" />
+                <List items={listStates.items} key="items" />
             );
 
         return (
             <div>
                 <button onClick={doRotate}>Rotate</button>
-                <button onClick={doRefresh} disabled={isLoading}>Refresh</button>
+                <button onClick={doRefresh} disabled={listStates.isLoading}>Refresh</button>
                 {  listApprearance }
             </div>
         );
@@ -163,9 +164,11 @@ class RotatableGoodsListContainer extends React.Component {
 }
 const RotatableGoodsList = connect(
     state => ({
-        items: state.goodsListState.goods,
-        isLoading: state.goodsListState.isLoading,
-        isLoadingFailed: state.goodsListState.isLoadingFailed
+        listStates: {
+            items: state.goodsListState.goods,
+            isLoading: state.goodsListState.isLoading,
+            isLoadingFailed: state.goodsListState.isLoadingFailed
+        }
     }),
     dispatch => ({
         doRotate: () => dispatch({ type: 'ROTATE' }),
