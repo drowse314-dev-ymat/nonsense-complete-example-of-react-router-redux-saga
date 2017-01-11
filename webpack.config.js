@@ -19,11 +19,6 @@ module.exports = {
     ]
   },
   resolve: {
-    root: __dirname,
-    extensions: ['', '.js', '.jsx', 'es6', '.json', '.tx', '.tsx'],
-    moduleDirectories: [
-      'app',
-      'node_modules'
-    ]
+    extensions: ['', '.js', '.jsx'],
   }
 };
